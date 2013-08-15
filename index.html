@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>ArcheAge Farm Calculator</title>
+	<link rel="stylesheet" href="jquery-ui/themes/base/jquery.ui.all.css">
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+
+	<style>
+	.draggable { width: 90px; height: 80px; padding: 5px; float: left; margin: 0 10px 10px 0; font-size: .9em; }
+	.ui-widget-header p, .ui-widget-content p { margin: 0; }
+	#snaptarget { height: 140px; }
+        #farm {  background-color: #ccffcc; border: 0px solid #008800; position: relative;  }
+        body { margin-top: 0px; }
+	</style>
+	<script>
+        var CELL_SIZE=48;
+	$(function() {
+                s_15 = spawn(1.5,"body");
+                s_15.css("left",CELL_SIZE);
+                s_15.css("top",1.0*CELL_SIZE);
+                watersource(s_15);
+
+
+                s_30 = spawn(3.0,"body");
+                s_30.css("left",3*CELL_SIZE);
+                s_30.css("top",0.5*CELL_SIZE);
+                watersource(s_30);
+
+
+                set_field(10,10);
+                field = $("#farm");
+                field.css("left",CELL_SIZE)
+                field.css("top",4*CELL_SIZE)
+                field.left = field.position().left
+                field.left = field.position().left
+                field.right = field.position().left + field.outerWidth()
+                field.top = field.position().top
+                field.but = field.position().top + field.outerHeight()
+	});
+
+        var widget_count=0;
+        function set_field(x,y)
+        {
+            $("#farm").height(CELL_SIZE*x);
+            $("#farm").width(CELL_SIZE*y);
+        }
+        var current_drag = undefined;
+        var spawns = new Array(0);
+        var field;
+        function check()
+        {
+            //alert(spawns[0].position().left)
+            //alert(field.position().left)
+
+            for(i=0; i<spawns.length; i++)
+            {
+                spawns[i].oldcolor = spawns[i].color
+                spawns[i].color="green";
+                if(spawns[i].watersource && ( spawns[i].pos.left != spawns[i].position().left || spawns[i].pos.top != spawns[i].position().top  ))
+                {
+                  new_item = spawn(spawns[i].ora,'body');
+                  move(new_item, spawns[i].pos);
+                  watersource(new_item);
+                  spawns[i].watersource = false;
+                }
+
+            }
+
+            for(i=0; i<spawns.length; i++)
+            {
+                if(spawns[i].watersource) continue;
+                Fleft = spawns[i].position().left
+                Fright = spawns[i].position().left + spawns[i].outerWidth()
+                Ftop = spawns[i].position().top
+                Fbut = spawns[i].position().top + spawns[i].outerHeight()
+                Fcx  = spawns[i].position().left + spawns[i].outerWidth() / 2;
+                Fcy  = spawns[i].position().top + spawns[i].outerHeight() / 2;
+
+                if( Fleft  < field.left ) spawns[i].color="red";
+                if( Fright > field.right) spawns[i].color="red";
+                if( Ftop  < field.top ) spawns[i].color="red";
+                if( Fbut  > field.but ) spawns[i].color="red";
+                for(j=0; j<spawns.length; j++)
+                {
+                  if(spawns[j].watersource) continue;
+                  if ( j >= i) continue;
+                  Sleft = spawns[j].position().left
+                  Sright = spawns[j].position().left + spawns[j].outerWidth()
+                  Stop = spawns[j].position().top
+                  Sbut = spawns[j].position().top + spawns[j].outerHeight()
+                  Scx  = spawns[j].position().left + spawns[j].outerWidth() / 2;
+                  Scy  = spawns[j].position().top + spawns[j].outerHeight() / 2;
+
+                  len = spawns[j].outerWidth() / 2 + spawns[i].outerWidth() / 2;
+                  ds = (Fcx - Scx) * (Fcx - Scx) + (Fcy - Scy) * (Fcy - Scy)
+                  if(ds < len*len)
+                  {
+                    spawns[i].color="red";
+                    spawns[j].color="red";
+                  }
+                }
+            }
+
+            for(i=0; i<spawns.length; i++) if (spawns[i].color != spawns[i].oldcolor) spawns[i].redraw(spawns[i].color)
+
+        }
+        function watersource(spawned)
+        {
+            spawned.watersource = true;
+            spawned.pos = spawned.position()
+            spawned.color = "green";
+            spawned.redraw("green");
+        }
+        function move(obj, pos)
+        {
+            obj.css("top",pos.top)
+            obj.css("left",pos.left)
+        }
+        function spawn(radius, parentId)
+        {
+             ora = radius
+             radius = radius * CELL_SIZE / 2;
+             widget = $("#"+parentId).append("<div id='spawned_"+widget_count+"' style='width:"+radius*2+"px ; height:"+radius*2+"px ; border: none; position:absolute; z-index:5;'>"
+             + "<canvas id='spawned_canvas_"+widget_count+"' width='"+radius*2+"' height='"+radius*2+"'></canvas>"
+             + "</div>")
+             spawned = $("#spawned_"+widget_count);
+             spawned.watersource =false;
+             spawned.ora = ora
+             spawned.color = "green";
+             $("#spawned_"+widget_count).draggable(
+             {
+                grid: [ CELL_SIZE/12, CELL_SIZE/12 ]
+                ,stop: function()
+                {
+                    check();
+                }
+              }
+             );
+             spawned.cid = 'spawned_canvas_'+widget_count;
+             spawned.redraw = function( color ) {
+               var canvas = document.getElementById(this.cid);
+               var context = canvas.getContext('2d');
+               var centerX = canvas.width / 2;
+               var centerY = canvas.height / 2;
+
+               context.clearRect ( 0 , 0 , canvas.width ,canvas.height );
+               context.beginPath();
+               context.arc(centerX, centerY, radius-2, 0, 2 * Math.PI, false);
+               //context.fillStyle = color;
+               //context.fill();
+               context.font = '8pt sans-serif';
+               context.textAlign = 'center';
+               context.lineWidth = 5;
+               context.fillStyle = color;
+               context.strokeStyle = color;
+               context.stroke();
+               context.fillText(this.ora+"x"+this.ora,centerX,centerY);
+             }
+             spawned.redraw("green")
+             spawns.push(spawned)
+             spawned.css("top",0)
+             widget_count += 1
+             return spawned
+        }
+	</script>
+</head>
+<body id="body">
+
+
+
+
+<div id="farm" style="position: absolute; left: 0px;" ></div>
+</body>
+</html>
